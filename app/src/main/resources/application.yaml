@@ -1,3 +1,37 @@
+server:
+  port: 8888
+
 spring:
   application:
-    name: app
+    name: cms
+
+  # Database
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:cms_db}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:katya1803}
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+
+  # Flyway
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+# MyBatis
+mybatis:
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: com.katya.app.module
+  configuration:
+    map-underscore-to-camel-case: true
+    default-fetch-size: 100
+    default-statement-timeout: 30
+
+# JWT Configuration
+jwt:
+  secret: ${JWT_SECRET:mySecretKeyForJWTTokenGenerationMustBeLongEnough123456}
+  access-token-expiration: 15m
+  refresh-token-expiration: 7d
+
