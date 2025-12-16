@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+    <!-- Application name from properties -->
+    <springProperty scope="context" name="APP_NAME" source="spring.application.name"/>
+
+    <!-- Console Appender - For Development -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} [traceId=%X{traceId:-}] - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- JSON Console Appender - For Production (ELK/EFK) -->
+    <appender name="JSON_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <!-- Application name -->
+            <customFields>{"app":"${APP_NAME}"}</customFields>
+
+            <!-- Include MDC fields (traceId, userId, etc.) -->
+            <includeMdcKeyName>traceId</includeMdcKeyName>
+            <includeMdcKeyName>userId</includeMdcKeyName>
+
+            <!-- Include caller data for debugging -->
+            <includeCallerData>false</includeCallerData>
+
+            <!-- Include stack trace -->
+            <includeStackTrace>true</includeStackTrace>
+        </encoder>
+    </appender>
+
+    <!-- File Appender - Rolling Log Files -->
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/application.log</file>
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <customFields>{"app":"${APP_NAME}"}</customFields>
+            <includeMdcKeyName>traceId</includeMdcKeyName>
+        </encoder>
+
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <!-- Daily rollover -->
+            <fileNamePattern>logs/application.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <!-- Keep 30 days of logs -->
+            <maxHistory>30</maxHistory>
+            <!-- Max total size of all logs -->
+            <totalSizeCap>10GB</totalSizeCap>
+        </rollingPolicy>
+    </appender>
+
+    <!-- Error File Appender - Separate file for errors -->
+    <appender name="ERROR_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/error.log</file>
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>ERROR</level>
+        </filter>
+
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <customFields>{"app":"${APP_NAME}"}</customFields>
+            <includeMdcKeyName>traceId</includeMdcKeyName>
+            <includeStackTrace>true</includeStackTrace>
+        </encoder>
+
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>logs/error.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>60</maxHistory>
+        </rollingPolicy>
+    </appender>
+
+    <!-- Async Appenders for better performance -->
+    <appender name="ASYNC_CONSOLE" class="ch.qos.logback.classic.AsyncAppender">
+        <appender-ref ref="JSON_CONSOLE"/>
+        <queueSize>512</queueSize>
+        <discardingThreshold>0</discardingThreshold>
+        <includeCallerData>false</includeCallerData>
+    </appender>
+
+    <appender name="ASYNC_FILE" class="ch.qos.logback.classic.AsyncAppender">
+        <appender-ref ref="FILE"/>
+        <queueSize>512</queueSize>
+    </appender>
+
+    <!-- Development Profile -->
+    <springProfile name="dev,default">
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+
+        <!-- More detailed logs for your app -->
+        <logger name="com.katya.app" level="DEBUG"/>
+
+        <!-- Less noise from frameworks -->
+        <logger name="org.springframework" level="INFO"/>
+        <logger name="org.mybatis" level="INFO"/>
+    </springProfile>
+
+    <!-- Production Profile -->
+    <springProfile name="prod">
+        <root level="INFO">
+            <appender-ref ref="ASYNC_CONSOLE"/>
+            <appender-ref ref="ASYNC_FILE"/>
+            <appender-ref ref="ERROR_FILE"/>
+        </root>
+
+        <logger name="com.katya.app" level="INFO"/>
+        <logger name="org.springframework" level="WARN"/>
+        <logger name="org.mybatis" level="WARN"/>
+    </springProfile>
+
+</configuration>

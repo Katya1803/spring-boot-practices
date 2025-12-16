@@ -1,0 +1,50 @@
+filebeat.inputs:
+  # Application logs
+  - type: log
+    enabled: true
+    paths:
+      - /logs/application*.log
+    json.keys_under_root: true
+    json.add_error_key: true
+    json.message_key: message
+    fields:
+      log_type: application
+      app: cms
+    fields_under_root: true
+
+  # Error logs
+  - type: log
+    enabled: true
+    paths:
+      - /logs/error*.log
+    json.keys_under_root: true
+    json.add_error_key: true
+    json.message_key: message
+    fields:
+      log_type: error
+      app: cms
+      severity: error
+    fields_under_root: true
+
+# Output to Logstash
+output.logstash:
+  hosts: ["cms-logstash:5044"]
+
+# Processor to parse JSON
+processors:
+  - decode_json_fields:
+      fields: ["message"]
+      target: ""
+      overwrite_keys: true
+  - drop_fields:
+      fields: ["agent", "ecs", "host", "input"]
+      ignore_missing: true
+
+# Logging
+logging.level: info
+logging.to_files: true
+logging.files:
+  path: /usr/share/filebeat/logs
+  name: filebeat
+  keepfiles: 7
+  permissions: 0644

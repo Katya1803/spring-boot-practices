@@ -1,0 +1,107 @@
+version: '3.8'
+
+services:
+  # Elasticsearch for CMS
+  cms-elasticsearch:
+    image: elasticsearch:8.11.0
+    container_name: cms_elasticsearch
+    environment:
+      - node.name=cms-es-node
+      - cluster.name=cms-elk-cluster
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - xpack.security.enabled=false
+      - xpack.security.enrollment.enabled=false
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - cms_elasticsearch_data:/usr/share/elasticsearch/data
+    ports:
+      - "9222:9200"  # Changed from default 9200
+      - "9333:9300"  # Changed from default 9300
+    networks:
+      - cms-elk-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Logstash for CMS
+  cms-logstash:
+    image: logstash:8.11.0
+    container_name: cms_logstash
+    volumes:
+      - ./elk-config/logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
+      - ./elk-config/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
+      - ./logs:/logs:ro  # Mount logs directory for file input
+    ports:
+      - "5055:5044"  # Changed from default 5044 (Beats input)
+      - "9666:9600"  # Changed from default 9600 (Logstash monitoring)
+      - "5005:5000"  # TCP input for direct log streaming
+    environment:
+      - "LS_JAVA_OPTS=-Xms256m -Xmx256m"
+      - ELASTICSEARCH_HOSTS=http://cms-elasticsearch:9200
+    networks:
+      - cms-elk-network
+    depends_on:
+      cms-elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9600/_node/stats || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Kibana for CMS
+  cms-kibana:
+    image: kibana:8.11.0
+    container_name: cms_kibana
+    ports:
+      - "5602:5602"  # Changed from default 5601
+    environment:
+      - ELASTICSEARCH_HOSTS=http://cms-elasticsearch:9200
+      - SERVER_NAME=cms-kibana
+      - SERVER_HOST=0.0.0.0
+    volumes:
+      - ./elk-config/kibana.yml:/usr/share/kibana/config/kibana.yml:ro
+    networks:
+      - cms-elk-network
+    depends_on:
+      cms-elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5601/api/status || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Filebeat (Optional) - để collect logs từ file
+  cms-filebeat:
+    image: elastic/filebeat:8.11.0
+    container_name: cms_filebeat
+    user: root
+    volumes:
+      - ./elk-config/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - ./logs:/logs:ro
+      - cms_filebeat_data:/usr/share/filebeat/data
+    networks:
+      - cms-elk-network
+    depends_on:
+      cms-logstash:
+        condition: service_healthy
+    command: filebeat -e -strict.perms=false
+
+volumes:
+  cms_elasticsearch_data:
+    driver: local
+  cms_filebeat_data:
+    driver: local
+
+networks:
+  cms-elk-network:
+    driver: bridge
+    name: cms-elk-network

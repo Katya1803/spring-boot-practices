@@ -15,6 +15,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - spring-network
+      - cms-elk-network  # Added for ELK integration
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -31,6 +32,7 @@ services:
       - redis_data:/data
     networks:
       - spring-network
+      - cms-elk-network  # Added for ELK integration
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -71,8 +73,17 @@ services:
       DB_USERNAME: postgres
       DB_PASSWORD: postgres123
 
+      # Redis Configuration
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+
       # JWT Configuration
       JWT_SECRET: dGhpc0lzQVZlcnlTZWN1cmVKV1RTZWNyZXRLZXlGb3JQcm9kdWN0aW9uVXNlMjAyNF9TdXBlclNlY3VyZVN0cmluZ1dpdGhSYW5kb21DaGFyYWN0ZXJzQW5kTnVtYmVyczEyMzQ1Njc4OTA=
+
+      # Spring Profile
+      SPRING_PROFILES_ACTIVE: prod
+    volumes:
+      - ./logs:/app/logs  # Mount logs directory for ELK
     depends_on:
       postgres:
         condition: service_healthy
@@ -80,6 +91,7 @@ services:
         condition: service_healthy
     networks:
       - spring-network
+      - cms-elk-network  # Added for ELK integration
     restart: unless-stopped
 
 volumes:
@@ -93,3 +105,6 @@ volumes:
 networks:
   spring-network:
     driver: bridge
+  cms-elk-network:
+    external: true  # Will be created by docker-compose.elk.yml
+    name: cms-elk-network

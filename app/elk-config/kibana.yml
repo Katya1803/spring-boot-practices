@@ -1,0 +1,15 @@
+server.name: cms-kibana
+server.host: "0.0.0.0"
+server.port: 5602
+
+elasticsearch.hosts: ["http://cms-elasticsearch:9222"]
+
+# Disable security features for development
+xpack.security.enabled: false
+xpack.encryptedSavedObjects.encryptionKey: "cms_kibana_encryption_key_min_32_chars_required"
+
+# Monitoring
+monitoring.ui.container.elasticsearch.enabled: true
+
+# Logging
+logging.root.level: info
