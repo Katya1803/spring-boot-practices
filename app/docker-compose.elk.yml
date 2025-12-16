@@ -20,8 +20,8 @@ services:
     volumes:
       - cms_elasticsearch_data:/usr/share/elasticsearch/data
     ports:
-      - "9222:9200"  # Changed from default 9200
-      - "9333:9300"  # Changed from default 9300
+      - "9200:9200"  # Changed from default 9200
+      - "9300:9300"  # Changed from default 9300
     networks:
       - cms-elk-network
     healthcheck:
@@ -39,9 +39,9 @@ services:
       - ./elk-config/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
       - ./logs:/logs:ro  # Mount logs directory for file input
     ports:
-      - "5055:5044"  # Changed from default 5044 (Beats input)
-      - "9666:9600"  # Changed from default 9600 (Logstash monitoring)
-      - "5005:5000"  # TCP input for direct log streaming
+      - "5044:5044"  # Changed from default 5044 (Beats input)
+      - "9600:9600"  # Changed from default 9600 (Logstash monitoring)
+      - "5000:5000"  # TCP input for direct log streaming
     environment:
       - "LS_JAVA_OPTS=-Xms256m -Xmx256m"
       - ELASTICSEARCH_HOSTS=http://cms-elasticsearch:9200
@@ -61,7 +61,7 @@ services:
     image: kibana:8.11.0
     container_name: cms_kibana
     ports:
-      - "5602:5602"  # Changed from default 5601
+      - "5601:5601"  # Changed from default 5601
     environment:
       - ELASTICSEARCH_HOSTS=http://cms-elasticsearch:9200
       - SERVER_NAME=cms-kibana

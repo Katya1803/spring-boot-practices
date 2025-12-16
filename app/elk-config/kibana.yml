@@ -1,8 +1,8 @@
 server.name: cms-kibana
 server.host: "0.0.0.0"
-server.port: 5602
+server.port: 5601
 
-elasticsearch.hosts: ["http://cms-elasticsearch:9222"]
+elasticsearch.hosts: ["http://cms-elasticsearch:9200"]
 
 # Disable security features for development
 xpack.security.enabled: false

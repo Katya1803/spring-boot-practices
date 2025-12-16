@@ -1,6 +1,6 @@
 http.host: "0.0.0.0"
 xpack.monitoring.enabled: false
-xpack.monitoring.elasticsearch.hosts: ["http://cms-elasticsearch:9222"]
+xpack.monitoring.elasticsearch.hosts: ["http://cms-elasticsearch:9200"]
 
 # Pipeline settings
 pipeline.workers: 2
