@@ -24,7 +24,7 @@ public class TestController {
     }
 
     // Health check
-    @GetMapping("/health")
+    @GetMapping("/actuator/health")
     public ResponseEntity<ApiResponse<Map<String, Object>>> health() {
         log.info("Health check requested");
 
