@@ -132,6 +132,12 @@ show_logs() {
         spring|cms)
             docker logs -f cms_app
             ;;
+        sql)
+            tail -f logs/sql.log
+            ;;
+        error)
+            tail -f logs/error.log
+            ;;
         *)
             print_info "Showing all logs..."
             docker-compose -f docker-compose.elk.yml logs -f &
@@ -166,19 +172,28 @@ show_urls() {
 
     echo -e "${GREEN}Application:${NC}"
     echo "  • API:            http://localhost:8888"
-    echo "  • Health Check:   http://localhost:8888/api/test/health"
+    echo "  • Health Check:   http://localhost:8888/api/test/actuator/health"
     echo "  • Test Items:     http://localhost:8888/api/test/items"
     echo ""
 
-    echo -e "${GREEN}Monitoring:${NC}"
+    echo -e "${GREEN}Monitoring (ELK):${NC}"
     echo "  • Kibana:         http://localhost:5602"
     echo "  • Elasticsearch:  http://localhost:9222"
+    echo "  • Logstash:       http://localhost:9611/_node/stats"
     echo ""
 
     echo -e "${GREEN}Database:${NC}"
     echo "  • PgAdmin:        http://localhost:5778"
     echo "    - Email:        admin@admin.com"
     echo "    - Password:     admin123"
+    echo "  • PostgreSQL:     localhost:5777"
+    echo "  • Redis:          localhost:6666"
+    echo ""
+
+    echo -e "${GREEN}Log Files:${NC}"
+    echo "  • Application:    ./logs/application.log"
+    echo "  • SQL Queries:    ./logs/sql.log"
+    echo "  • Errors:         ./logs/error.log"
     echo ""
 
     print_info "═══════════════════════════════════════════════════════"
@@ -191,35 +206,42 @@ health_check() {
 
     # Elasticsearch
     if curl -sf http://localhost:9222/_cluster/health > /dev/null 2>&1; then
-        print_success "Elasticsearch is healthy"
+        print_success "Elasticsearch is healthy (port 9222)"
     else
         print_error "Elasticsearch is not responding"
     fi
 
     # Kibana
     if curl -sf http://localhost:5602/api/status > /dev/null 2>&1; then
-        print_success "Kibana is healthy"
+        print_success "Kibana is healthy (port 5602)"
     else
         print_error "Kibana is not responding"
     fi
 
+    # Logstash
+    if curl -sf http://localhost:9611/_node/stats > /dev/null 2>&1; then
+        print_success "Logstash is healthy (port 9611)"
+    else
+        print_error "Logstash is not responding"
+    fi
+
     # Application
-    if curl -sf http://localhost:8888/api/test/health > /dev/null 2>&1; then
-        print_success "Application is healthy"
+    if curl -sf http://localhost:8888/api/test/actuator/health > /dev/null 2>&1; then
+        print_success "Application is healthy (port 8888)"
     else
         print_error "Application is not responding"
     fi
 
     # PostgreSQL
     if docker exec postgres_db pg_isready -U postgres > /dev/null 2>&1; then
-        print_success "PostgreSQL is healthy"
+        print_success "PostgreSQL is healthy (port 5777)"
     else
         print_error "PostgreSQL is not responding"
     fi
 
     # Redis
     if docker exec redis_cache redis-cli ping > /dev/null 2>&1; then
-        print_success "Redis is healthy"
+        print_success "Redis is healthy (port 6666)"
     else
         print_error "Redis is not responding"
     fi
@@ -247,6 +269,103 @@ clean_volumes() {
     fi
 }
 
+# Test SQL logging
+test_sql() {
+    print_info "Testing SQL logging..."
+    echo ""
+
+    print_info "Creating a test item to generate SQL logs..."
+    curl -X POST http://localhost:8888/api/test/items \
+      -H "Content-Type: application/json" \
+      -d '{"name":"SQL Test Item","description":"Testing SQL logging"}' \
+      2>/dev/null | jq '.'
+
+    echo ""
+    print_info "Fetching all items to generate SELECT query..."
+    curl http://localhost:8888/api/test/items 2>/dev/null | jq '.'
+
+    echo ""
+    print_success "SQL queries logged! Check:"
+    echo "  • Console output above"
+    echo "  • File: ./logs/sql.log"
+    echo ""
+    print_info "View SQL logs with: ./manage.sh logs sql"
+}
+
+# Setup Kibana index patterns
+setup_kibana() {
+    print_info "Setting up Kibana Index Patterns..."
+    echo ""
+
+    # Wait for Kibana to be ready
+    print_info "Waiting for Kibana to be ready..."
+    until curl -sf http://localhost:5602/api/status > /dev/null 2>&1; do
+        echo -n "."
+        sleep 2
+    done
+    echo ""
+    print_success "Kibana is ready!"
+    echo ""
+
+    # Wait a bit more for Kibana to fully initialize
+    sleep 5
+
+    # Create index pattern for application logs
+    print_info "Creating index pattern: cms-logs-*"
+    curl -X POST "http://localhost:5602/api/saved_objects/index-pattern/cms-logs" \
+      -H "kbn-xsrf: true" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "attributes": {
+          "title": "cms-logs-*",
+          "timeFieldName": "@timestamp"
+        }
+      }' > /dev/null 2>&1
+
+    # Create index pattern for SQL logs
+    print_info "Creating index pattern: cms-sql-*"
+    curl -X POST "http://localhost:5602/api/saved_objects/index-pattern/cms-sql" \
+      -H "kbn-xsrf: true" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "attributes": {
+          "title": "cms-sql-*",
+          "timeFieldName": "@timestamp"
+        }
+      }' > /dev/null 2>&1
+
+    # Create index pattern for error logs
+    print_info "Creating index pattern: cms-error-*"
+    curl -X POST "http://localhost:5602/api/saved_objects/index-pattern/cms-error" \
+      -H "kbn-xsrf: true" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "attributes": {
+          "title": "cms-error-*",
+          "timeFieldName": "@timestamp"
+        }
+      }' > /dev/null 2>&1
+
+    # Set default index pattern
+    print_info "Setting default index pattern..."
+    curl -X POST "http://localhost:5602/api/kibana/settings/defaultIndex" \
+      -H "kbn-xsrf: true" \
+      -H "Content-Type: application/json" \
+      -d '{
+        "value": "cms-logs"
+      }' > /dev/null 2>&1
+
+    echo ""
+    print_success "Kibana Index Patterns created successfully!"
+    echo ""
+    echo -e "${GREEN}Available Index Patterns:${NC}"
+    echo "  • cms-logs-*   → All application logs"
+    echo "  • cms-sql-*    → SQL query logs"
+    echo "  • cms-error-*  → Error logs only"
+    echo ""
+    print_info "Access Kibana: http://localhost:5602"
+}
+
 # Show help
 show_help() {
     cat << EOF
@@ -269,11 +388,16 @@ ${GREEN}Commands:${NC}
   health             Check health of all services
   urls               Show access URLs
 
-  logs [service]     Show logs (elk|app|es|ls|kb|cms)
+  logs [service]     Show logs (elk|app|es|ls|kb|cms|sql|error)
                      Examples:
                        ./manage.sh logs elk
                        ./manage.sh logs cms
-                       ./manage.sh logs (all logs)
+                       ./manage.sh logs sql    # View SQL queries
+                       ./manage.sh logs error  # View errors only
+                       ./manage.sh logs        # All logs
+
+  test-sql           Test SQL logging by creating sample data
+  setup-kibana       Setup Kibana index patterns (run after first start)
 
   clean              Clean all volumes and data
 
@@ -281,10 +405,22 @@ ${GREEN}Commands:${NC}
 
 ${GREEN}Examples:${NC}
   ./manage.sh start              # Start everything
+  ./manage.sh setup-kibana       # Setup Kibana (after first start)
   ./manage.sh start-elk          # Start only ELK
   ./manage.sh logs cms           # Follow CMS app logs
+  ./manage.sh logs sql           # Follow SQL query logs
   ./manage.sh health             # Check service health
+  ./manage.sh test-sql           # Test SQL logging
   ./manage.sh clean              # Clean all data
+
+${GREEN}Port Configuration:${NC}
+  Application:      8888
+  PostgreSQL:       5777
+  Redis:            6666
+  PgAdmin:          5778
+  Elasticsearch:    9222
+  Kibana:           5602
+  Logstash:         5055, 9611, 5001
 
 EOF
 }
@@ -326,6 +462,12 @@ main() {
             ;;
         logs)
             show_logs "$2"
+            ;;
+        test-sql)
+            test_sql
+            ;;
+        setup-kibana)
+            setup_kibana
             ;;
         clean)
             clean_volumes

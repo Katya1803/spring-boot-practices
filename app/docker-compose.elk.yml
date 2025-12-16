@@ -20,8 +20,8 @@ services:
     volumes:
       - cms_elasticsearch_data:/usr/share/elasticsearch/data
     ports:
-      - "9200:9200"  # Changed from default 9200
-      - "9300:9300"  # Changed from default 9300
+      - "9222:9200"  # Changed to avoid conflict
+      - "9333:9300"  # Changed to avoid conflict
     networks:
       - cms-elk-network
     healthcheck:
@@ -37,11 +37,11 @@ services:
     volumes:
       - ./elk-config/logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
       - ./elk-config/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
-      - ./logs:/logs:ro  # Mount logs directory for file input
+      - ./logs:/logs:ro
     ports:
-      - "5044:5044"  # Changed from default 5044 (Beats input)
-      - "9600:9600"  # Changed from default 9600 (Logstash monitoring)
-      - "5000:5000"  # TCP input for direct log streaming
+      - "5055:5044"  # Changed Beats input port
+      - "9611:9600"  # Changed monitoring port
+      - "5001:5000"  # Changed TCP input port
     environment:
       - "LS_JAVA_OPTS=-Xms256m -Xmx256m"
       - ELASTICSEARCH_HOSTS=http://cms-elasticsearch:9200
@@ -61,7 +61,7 @@ services:
     image: kibana:8.11.0
     container_name: cms_kibana
     ports:
-      - "5601:5601"  # Changed from default 5601
+      - "5602:5601"  # Changed from default
     environment:
       - ELASTICSEARCH_HOSTS=http://cms-elasticsearch:9200
       - SERVER_NAME=cms-kibana
@@ -79,7 +79,7 @@ services:
       timeout: 10s
       retries: 5
 
-  # Filebeat (Optional) - để collect logs từ file
+  # Filebeat (Optional)
   cms-filebeat:
     image: elastic/filebeat:8.11.0
     container_name: cms_filebeat

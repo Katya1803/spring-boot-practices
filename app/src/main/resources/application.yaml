@@ -41,9 +41,27 @@ mybatis:
     map-underscore-to-camel-case: true
     default-fetch-size: 100
     default-statement-timeout: 30
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
 
 # JWT Configuration
 jwt:
   secret: ${JWT_SECRET:dGhpc0lzQVZlcnlTZWN1cmVKV1RTZWNyZXRLZXlGb3JQcm9kdWN0aW9uVXNlMjAyNF9TdXBlclNlY3VyZVN0cmluZ1dpdGhSYW5kb21DaGFyYWN0ZXJzQW5kTnVtYmVyczEyMzQ1Njc4OTA=}
   access-token-expiration: 15m
   refresh-token-expiration: 7d
+
+# Logging Configuration
+logging:
+  pattern:
+    console: "%clr(%d{yyyy-MM-dd HH:mm:ss.SSS}){faint} %clr(${LOG_LEVEL_PATTERN:-%5p}) %clr([%t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} %m%n${LOG_EXCEPTION_CONVERSION_WORD:%wEx}"
+  level:
+    root: INFO
+    com.katya.app: DEBUG
+    com.katya.app.module.test.TestItemMapper: DEBUG
+    org.springframework: INFO
+    org.springframework.web: INFO
+    org.springframework.security: INFO
+    org.mybatis: INFO
+    org.apache.ibatis: INFO
+    com.zaxxer.hikari: INFO
+    org.springframework.data.redis: INFO
+    org.flywaydb: INFO

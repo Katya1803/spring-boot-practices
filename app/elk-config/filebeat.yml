@@ -26,7 +26,19 @@ filebeat.inputs:
       severity: error
     fields_under_root: true
 
-# Output to Logstash
+  # SQL logs
+  - type: log
+    enabled: true
+    paths:
+      - /logs/sql*.log
+    json.keys_under_root: true
+    json.add_error_key: true
+    json.message_key: message
+    fields:
+      log_type: sql
+      app: cms
+    fields_under_root: true
+
 output.logstash:
   hosts: ["cms-logstash:5044"]
 

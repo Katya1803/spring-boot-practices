@@ -2,7 +2,6 @@
 <configuration>
     <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
 
-    <!-- Application name from properties -->
     <springProperty scope="context" name="APP_NAME" source="spring.application.name"/>
 
     <!-- Console Appender - For Development -->
@@ -12,21 +11,50 @@
         </encoder>
     </appender>
 
-    <!-- JSON Console Appender - For Production (ELK/EFK) -->
+    <!-- JSON Console Appender - For Production (ELK) -->
     <appender name="JSON_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder class="net.logstash.logback.encoder.LogstashEncoder">
-            <!-- Application name -->
             <customFields>{"app":"${APP_NAME}"}</customFields>
 
-            <!-- Include MDC fields (traceId, userId, etc.) -->
+            <!-- Only include useful MDC fields -->
             <includeMdcKeyName>traceId</includeMdcKeyName>
             <includeMdcKeyName>userId</includeMdcKeyName>
+            <includeMdcKeyName>username</includeMdcKeyName>
 
-            <!-- Include caller data for debugging -->
+            <!-- Include context name -->
+            <includeContext>false</includeContext>
+
+            <!-- Include caller data only for ERROR level -->
             <includeCallerData>false</includeCallerData>
 
-            <!-- Include stack trace -->
+            <!-- Include stack trace for errors -->
             <includeStackTrace>true</includeStackTrace>
+
+            <!-- Shorten logger names -->
+            <shortenedLoggerNameLength>36</shortenedLoggerNameLength>
+
+            <!-- Field names customization -->
+            <fieldNames>
+                <timestamp>timestamp</timestamp>
+                <version>[ignore]</version>
+                <levelValue>[ignore]</levelValue>
+                <thread>thread</thread>
+                <logger>logger</logger>
+                <message>message</message>
+                <stackTrace>stack_trace</stackTrace>
+            </fieldNames>
+
+            <!-- Exclude unnecessary fields -->
+            <throwableConverter class="net.logstash.logback.stacktrace.ShortenedThrowableConverter">
+                <maxDepthPerThrowable>20</maxDepthPerThrowable>
+                <maxLength>2048</maxLength>
+                <shortenedClassNameLength>36</shortenedClassNameLength>
+                <exclude>sun\.reflect\..*</exclude>
+                <exclude>java\.lang\.reflect\..*</exclude>
+                <exclude>org\.springframework\..*</exclude>
+                <exclude>org\.apache\.catalina\..*</exclude>
+                <exclude>org\.apache\.tomcat\..*</exclude>
+            </throwableConverter>
         </encoder>
     </appender>
 
@@ -36,19 +64,26 @@
         <encoder class="net.logstash.logback.encoder.LogstashEncoder">
             <customFields>{"app":"${APP_NAME}"}</customFields>
             <includeMdcKeyName>traceId</includeMdcKeyName>
+            <includeMdcKeyName>userId</includeMdcKeyName>
+            <includeContext>false</includeContext>
+            <includeCallerData>false</includeCallerData>
+            <shortenedLoggerNameLength>36</shortenedLoggerNameLength>
+
+            <fieldNames>
+                <timestamp>timestamp</timestamp>
+                <version>[ignore]</version>
+                <levelValue>[ignore]</levelValue>
+            </fieldNames>
         </encoder>
 
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-            <!-- Daily rollover -->
             <fileNamePattern>logs/application.%d{yyyy-MM-dd}.log</fileNamePattern>
-            <!-- Keep 30 days of logs -->
             <maxHistory>30</maxHistory>
-            <!-- Max total size of all logs -->
             <totalSizeCap>10GB</totalSizeCap>
         </rollingPolicy>
     </appender>
 
-    <!-- Error File Appender - Separate file for errors -->
+    <!-- Error File Appender -->
     <appender name="ERROR_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>logs/error.log</file>
         <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
@@ -58,12 +93,42 @@
         <encoder class="net.logstash.logback.encoder.LogstashEncoder">
             <customFields>{"app":"${APP_NAME}"}</customFields>
             <includeMdcKeyName>traceId</includeMdcKeyName>
+            <includeMdcKeyName>userId</includeMdcKeyName>
             <includeStackTrace>true</includeStackTrace>
+            <includeCallerData>true</includeCallerData>
+            <shortenedLoggerNameLength>36</shortenedLoggerNameLength>
+
+            <fieldNames>
+                <version>[ignore]</version>
+                <levelValue>[ignore]</levelValue>
+            </fieldNames>
         </encoder>
 
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
             <fileNamePattern>logs/error.%d{yyyy-MM-dd}.log</fileNamePattern>
             <maxHistory>60</maxHistory>
+        </rollingPolicy>
+    </appender>
+
+    <!-- SQL Log Appender - Separate file for SQL queries -->
+    <appender name="SQL_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/sql.log</file>
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <customFields>{"app":"${APP_NAME}","log_type":"sql"}</customFields>
+            <includeMdcKeyName>traceId</includeMdcKeyName>
+            <includeContext>false</includeContext>
+            <shortenedLoggerNameLength>36</shortenedLoggerNameLength>
+
+            <fieldNames>
+                <version>[ignore]</version>
+                <levelValue>[ignore]</levelValue>
+            </fieldNames>
+        </encoder>
+
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>logs/sql.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>7</maxHistory>
+            <totalSizeCap>2GB</totalSizeCap>
         </rollingPolicy>
     </appender>
 
@@ -73,11 +138,19 @@
         <queueSize>512</queueSize>
         <discardingThreshold>0</discardingThreshold>
         <includeCallerData>false</includeCallerData>
+        <neverBlock>true</neverBlock>
     </appender>
 
     <appender name="ASYNC_FILE" class="ch.qos.logback.classic.AsyncAppender">
         <appender-ref ref="FILE"/>
         <queueSize>512</queueSize>
+        <neverBlock>true</neverBlock>
+    </appender>
+
+    <appender name="ASYNC_SQL" class="ch.qos.logback.classic.AsyncAppender">
+        <appender-ref ref="SQL_FILE"/>
+        <queueSize>256</queueSize>
+        <neverBlock>true</neverBlock>
     </appender>
 
     <!-- Development Profile -->
@@ -86,12 +159,28 @@
             <appender-ref ref="CONSOLE"/>
         </root>
 
-        <!-- More detailed logs for your app -->
-        <logger name="com.katya.app" level="DEBUG"/>
+        <!-- Application logs -->
+        <logger name="com.katya.app" level="DEBUG" additivity="false">
+            <appender-ref ref="CONSOLE"/>
+        </logger>
 
-        <!-- Less noise from frameworks -->
+        <!-- SQL logs - MyBatis mappers -->
+        <logger name="com.katya.app.module.test.TestItemMapper" level="DEBUG" additivity="false">
+            <appender-ref ref="CONSOLE"/>
+        </logger>
+
+        <!-- Reduce framework noise -->
         <logger name="org.springframework" level="INFO"/>
+        <logger name="org.springframework.web" level="INFO"/>
         <logger name="org.mybatis" level="INFO"/>
+        <logger name="org.apache.ibatis" level="INFO"/>
+        <logger name="com.zaxxer.hikari" level="INFO"/>
+        <logger name="org.flywaydb" level="INFO"/>
+
+        <!-- Hide unnecessary logs -->
+        <logger name="org.apache.catalina" level="WARN"/>
+        <logger name="org.apache.tomcat" level="WARN"/>
+        <logger name="org.springframework.boot.autoconfigure" level="WARN"/>
     </springProfile>
 
     <!-- Production Profile -->
@@ -102,9 +191,28 @@
             <appender-ref ref="ERROR_FILE"/>
         </root>
 
-        <logger name="com.katya.app" level="INFO"/>
+        <!-- Application logs -->
+        <logger name="com.katya.app" level="INFO" additivity="false">
+            <appender-ref ref="ASYNC_CONSOLE"/>
+            <appender-ref ref="ASYNC_FILE"/>
+            <appender-ref ref="ERROR_FILE"/>
+        </logger>
+
+        <!-- SQL logs in production (separate file) -->
+        <logger name="com.katya.app.module.test.TestItemMapper" level="DEBUG" additivity="false">
+            <appender-ref ref="ASYNC_SQL"/>
+        </logger>
+
+        <!-- Reduce framework logs -->
         <logger name="org.springframework" level="WARN"/>
         <logger name="org.mybatis" level="WARN"/>
+        <logger name="org.apache.ibatis" level="WARN"/>
+        <logger name="com.zaxxer.hikari" level="WARN"/>
+
+        <!-- Hide unnecessary logs -->
+        <logger name="org.apache.catalina" level="ERROR"/>
+        <logger name="org.apache.tomcat" level="ERROR"/>
+        <logger name="org.springframework.boot.autoconfigure" level="ERROR"/>
     </springProfile>
 
 </configuration>
