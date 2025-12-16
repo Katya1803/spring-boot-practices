@@ -7,9 +7,9 @@ spring:
 
   # Database
   datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:cms_db}
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5777}/${DB_NAME:cms_db}
     username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD:katya1803}
+    password: ${DB_PASSWORD:postgres123}
     hikari:
       maximum-pool-size: 10
       minimum-idle: 5
@@ -19,6 +19,19 @@ spring:
     enabled: true
     locations: classpath:db/migration
     baseline-on-migrate: true
+
+  # Redis
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6666}
+      timeout: 60000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 2
+          max-wait: -1ms
 
 # MyBatis
 mybatis:
@@ -31,7 +44,6 @@ mybatis:
 
 # JWT Configuration
 jwt:
-  secret: ${JWT_SECRET:mySecretKeyForJWTTokenGenerationMustBeLongEnough123456}
+  secret: ${JWT_SECRET:dGhpc0lzQVZlcnlTZWN1cmVKV1RTZWNyZXRLZXlGb3JQcm9kdWN0aW9uVXNlMjAyNF9TdXBlclNlY3VyZVN0cmluZ1dpdGhSYW5kb21DaGFyYWN0ZXJzQW5kTnVtYmVyczEyMzQ1Njc4OTA=}
   access-token-expiration: 15m
   refresh-token-expiration: 7d
-

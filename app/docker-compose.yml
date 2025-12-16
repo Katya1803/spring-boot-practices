@@ -1,0 +1,95 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres_db
+    environment:
+      POSTGRES_DB: cms_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres123
+    ports:
+      - "5777:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - spring-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: redis_cache
+    ports:
+      - "6666:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - spring-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # PgAdmin
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: pgadmin2
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "5778:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin2
+    networks:
+      - spring-network
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+  # Spring Boot Application
+  spring-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cms_app
+    ports:
+      - "8888:8888"
+    environment:
+      # Database Configuration
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: cms_db
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres123
+
+      # JWT Configuration
+      JWT_SECRET: dGhpc0lzQVZlcnlTZWN1cmVKV1RTZWNyZXRLZXlGb3JQcm9kdWN0aW9uVXNlMjAyNF9TdXBlclNlY3VyZVN0cmluZ1dpdGhSYW5kb21DaGFyYWN0ZXJzQW5kTnVtYmVyczEyMzQ1Njc4OTA=
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - spring-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+
+networks:
+  spring-network:
+    driver: bridge
