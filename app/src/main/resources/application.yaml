@@ -33,6 +33,13 @@ spring:
           min-idle: 2
           max-wait: -1ms
 
+  # OAuth2 Resource Server - Keycloak JWT Validation
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://keycloak:8080/realms/cms}
+
 # MyBatis
 mybatis:
   mapper-locations: classpath:mapper/*.xml
@@ -43,11 +50,11 @@ mybatis:
     default-statement-timeout: 30
     log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
 
-# JWT Configuration
-jwt:
-  secret: ${JWT_SECRET:dGhpc0lzQVZlcnlTZWN1cmVKV1RTZWNyZXRLZXlGb3JQcm9kdWN0aW9uVXNlMjAyNF9TdXBlclNlY3VyZVN0cmluZ1dpdGhSYW5kb21DaGFyYWN0ZXJzQW5kTnVtYmVyczEyMzQ1Njc4OTA=}
-  access-token-expiration: 15m
-  refresh-token-expiration: 7d
+keycloak:
+  server-url: ${KEYCLOAK_SERVER_URL:http://keycloak:8080}
+  realm: ${KEYCLOAK_REALM:cms}
+  client-id: ${KEYCLOAK_CLIENT_ID:cms-app}
+  client-secret: ${KEYCLOAK_CLIENT_SECRET:p3Lf6novfA2XOC15h85BwsC7KqfcMBAh}
 
 # Logging Configuration
 logging:

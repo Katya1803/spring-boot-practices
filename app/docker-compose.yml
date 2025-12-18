@@ -39,6 +39,27 @@ services:
       timeout: 3s
       retries: 5
 
+  # Keycloak - Identity Provider
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0
+    container_name: keycloak
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_HOSTNAME_STRICT: false
+      KC_HTTP_ENABLED: true
+    ports:
+      - "8080:8080"
+    command: start-dev
+    networks:
+      - spring-network
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/8080;echo -e 'GET /health/ready HTTP/1.1\\r\\nhost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3;if [ $? -eq 0 ]; then echo 'Healthcheck Successful';exit 0;else echo 'Healthcheck Failed';exit 1;fi;"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
   # PgAdmin
   pgadmin:
     image: dpage/pgadmin4:latest
@@ -65,6 +86,7 @@ services:
     container_name: cms_app
     ports:
       - "8888:8888"
+      - "5005:5005"
     environment:
       # Database Configuration
       DB_HOST: postgres
@@ -79,6 +101,7 @@ services:
 
       # JWT Configuration
       JWT_SECRET: dGhpc0lzQVZlcnlTZWN1cmVKV1RTZWNyZXRLZXlGb3JQcm9kdWN0aW9uVXNlMjAyNF9TdXBlclNlY3VyZVN0cmluZ1dpdGhSYW5kb21DaGFyYWN0ZXJzQW5kTnVtYmVyczEyMzQ1Njc4OTA=
+      JAVA_TOOL_OPTIONS : -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005
 
       # Spring Profile
       SPRING_PROFILES_ACTIVE: prod
@@ -93,6 +116,7 @@ services:
       - spring-network
       - cms-elk-network  # Added for ELK integration
     restart: unless-stopped
+
 
 volumes:
   postgres_data:

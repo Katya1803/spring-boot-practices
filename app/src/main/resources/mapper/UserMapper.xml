@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.katya.app.module.user.UserMapper">
+
+    <resultMap id="UserResult" type="com.katya.app.module.user.User">
+        <id property="id" column="id"/>
+        <result property="keycloakId" column="keycloak_id"/>
+        <result property="username" column="username"/>
+        <result property="email" column="email"/>
+        <result property="fullName" column="full_name"/>
+        <result property="isActive" column="is_active"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="lastSyncedAt" column="last_synced_at"/>
+    </resultMap>
+
+    <!-- Find by Keycloak ID -->
+    <select id="findByKeycloakId" resultMap="UserResult">
+        SELECT id, keycloak_id, username, email, full_name,
+               is_active, created_at, updated_at, last_synced_at
+        FROM users
+        WHERE keycloak_id = #{keycloakId}
+    </select>
+
+    <!-- Find by ID -->
+    <select id="findById" resultMap="UserResult">
+        SELECT id, keycloak_id, username, email, full_name,
+               is_active, created_at, updated_at, last_synced_at
+        FROM users
+        WHERE id = #{id}
+    </select>
+
+    <!-- Find by username -->
+    <select id="findByUsername" resultMap="UserResult">
+        SELECT id, keycloak_id, username, email, full_name,
+               is_active, created_at, updated_at, last_synced_at
+        FROM users
+        WHERE username = #{username}
+    </select>
+
+    <!-- Find by email -->
+    <select id="findByEmail" resultMap="UserResult">
+        SELECT id, keycloak_id, username, email, full_name,
+               is_active, created_at, updated_at, last_synced_at
+        FROM users
+        WHERE email = #{email}
+    </select>
+
+    <!-- Find all users -->
+    <select id="findAll" resultMap="UserResult">
+        SELECT id, keycloak_id, username, email, full_name,
+               is_active, created_at, updated_at, last_synced_at
+        FROM users
+        WHERE is_active = true
+        ORDER BY full_name
+    </select>
+
+    <!-- Find users by branch -->
+    <select id="findByBranchId" resultMap="UserResult">
+        SELECT u.id, u.keycloak_id, u.username, u.email, u.full_name,
+               u.is_active, u.created_at, u.updated_at, u.last_synced_at
+        FROM users u
+                 INNER JOIN user_branches ub ON u.id = ub.user_id
+        WHERE ub.branch_id = #{branchId}
+          AND u.is_active = true
+        ORDER BY u.full_name
+    </select>
+
+    <!-- Insert new user -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO users (keycloak_id, username, email, full_name, is_active, last_synced_at)
+        VALUES (#{keycloakId}, #{username}, #{email}, #{fullName}, #{isActive}, CURRENT_TIMESTAMP)
+    </insert>
+
+    <!-- Update user -->
+    <update id="update">
+        UPDATE users
+        SET username = #{username},
+            email = #{email},
+            full_name = #{fullName},
+            is_active = #{isActive},
+            updated_at = CURRENT_TIMESTAMP,
+            last_synced_at = CURRENT_TIMESTAMP
+        WHERE keycloak_id = #{keycloakId}
+    </update>
+
+    <!-- Update last synced timestamp -->
+    <update id="updateLastSyncedAt">
+        UPDATE users
+        SET last_synced_at = CURRENT_TIMESTAMP
+        WHERE keycloak_id = #{keycloakId}
+    </update>
+
+    <!-- Deactivate user -->
+    <update id="deactivate">
+        UPDATE users
+        SET is_active = false,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE keycloak_id = #{keycloakId}
+    </update>
+
+    <!-- Check exists -->
+    <select id="existsByKeycloakId" resultType="boolean">
+        SELECT EXISTS(SELECT 1 FROM users WHERE keycloak_id = #{keycloakId})
+    </select>
+
+</mapper>
